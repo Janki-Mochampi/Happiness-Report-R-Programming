@@ -1,0 +1,265 @@
+---
+title: "R- Programming Assignment Part B"
+author: "Janki Mochampi"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction (EDA)
+
+## Introduction(strategy)
+
+Uderstanding data - In this project i will use R functions such as head(),dim(),and str(),to understand the data contained in both the datasets provided.Moreover I will find the summary of the numerical variables to know the basic statistics such as the mode, median and standard deviation of the variables.
+
+Data Cleaning - I will evaluate the dataset for unnecessary columns,missing data and also rename columns where possible .Moreover in a situation where my datasets have similar columns I will combine them into a single dataset
+
+Determine variable relationships - I will not only find out how independent variables relate to the dependent variable but also how independent variables relate to each other and I will visualize this relationships and perform simple linear regression(dependent variable vs independent variable) as well as multiple linear regression (dependent variable vs independent variables)
+
+
+
+
+Importation and data loading
+   
+
+```{r}
+library(ggplot2)
+library(ggmap)
+library(maps)
+library(skimr)
+library(dplyr)
+library(caTools)
+
+
+whr2019=read.csv("C:/Users/FBDA20-023/OneDrive - Botswana Accountancy College/Desktop/R happiness report/2019_report.csv") 
+whr2020=read.csv("C:/Users/FBDA20-023/OneDrive - Botswana Accountancy College/Desktop/R happiness report/2020_report.csv") 
+map = map_data("world")
+
+```
+
+## Summarizing numerical data
+
+determining structure, dimensions and using head function to see how data looks like
+
+
+```{r}
+str(whr2019)
+str(whr2020)
+
+dim(whr2019)
+dim(whr2020)
+
+head(whr2019)
+head(whr2020)
+
+```
+
+
+Selecting numerical variables from both datasets
+
+
+```{r}
+numeric_19<- select(whr2019,c(2,3,4,5,6,7,8))
+numeric_20<- select(whr2020,c(2,3,4,5,6,7,8))
+```
+
+Finally we use the summary function to find the summary of numeric variables
+
+
+```{r}
+summary(numeric_19)
+summary(numeric_20)
+
+```
+
+## Anomalies in Numerical data Investigation
+
+I started by dropping dystopia _residual which is unnecessary column in this investigation
+
+There are no missing values in the datasets
+
+Finally I renamed social support to family so that I could concatenate whr2019 and whr2020
+ 
+```{r}
+#dropping unneccessary column
+whr2019 <- subset (whr2019, select = -dystopia_residual)
+
+
+whr2020 <- subset (whr2020, select = -dystopia_residual)
+
+
+# finding the number of missing values in datasets
+sum(is.na(whr2019))
+sum(is.na(whr2020))
+
+#Concatenating the datasets to whr 2019-2020
+colnames(whr2020)[which(names(whr2020)== "social_support")]<- "family"
+
+whr<- rbind(whr2019,whr2020)
+
+```
+ 
+## Visualization between variables relations
+
+Combining the datasets requires the datasets to have similar structure and column names
+
+```{r}
+# Correlation matrix for numerical variables rounded to 1 decimal place
+
+cordata = whr[,c(2,3,4,5,6,7,8)]
+corr <- round(cor(cordata), 1)
+corr
+
+```
+
+correlation matrix shown that there is a strong relationship between happiness and GDP,family and health.Relationship between happiness and freedom,corruption is less strong.Lastly there is very little correlation between happiness and government_trust
+
+```{r}
+plot(whr$gdp_per_capita,whr$happiness_score, main="Correlation between GDP & Happiness", xlab='GDP per Capita', ylab="Happiness Score")
+plot(whr$family,whr$happiness_score, main="Correlation between Family & Happiness", xlab='Family Quality', ylab="Happiness Score")
+plot(whr$health,whr$happiness_score, main="Correlation between Health & Happiness", xlab='Health', ylab="Happiness Score")
+plot(whr$freedom,whr$happiness_score, main="Correlation between Personal Freedom & Happiness", xlab='Freedom', ylab="Happiness Score")
+plot(whr$government_trust,whr$happiness_score, main="Correlation between Corruption & Happiness", xlab='Corruption', ylab="Happiness Score")
+plot(whr$generosity,whr$happiness_score, main="Correlation between Generosity & Happiness", xlab='Generosity', ylab="Happiness Score")
+
+```
+ 
+# Simple Linear Regression
+
+## Evaluation of variable relations
+
+```{r}
+#Checking for linear relationship between variables
+plot(whr$gdp_per_capita,whr$happiness_score, main = 'Correlation between GDP and Happiness',xlab='GDP per Capita', ylab="Happiness Score")
+
+# Checking if Dependent variable here follows a normal distribution
+# And i found out that it does
+hist(whr$happiness_score)
+```
+
+## Model Definition
+
+```{r}
+split = sample.split(whr$happiness_score, SplitRatio = 0.7)
+trainingset = subset(whr, split == TRUE)
+testset = subset(whr, split == FALSE)
+
+# Fitting Simple Linear Regression to the Training set
+lm.r= lm(formula = happiness_score ~ gdp_per_capita,
+         data = trainingset)
+
+
+```
+
+## Statistical Inference
+
+```{r}
+coef(lm.r)
+summary(lm.r)
+
+```
+
+Y-intercept that is the value of dependent variable when independent variable is 0 is approximately 3.38
+
+The p value is far less than 0 i.e 2.2e-16 which indicates a good linear correlation between the variables
+
+The F-statistic too far from 1 that is 269.9 which means there is a linear relationship between variables
+
+The model fits actual data by approximately 60.85%
+
+
+## Prediction
+
+```{r}
+# Predicting the Test set results
+ypred = predict(lm.r, newdata = testset)
+
+# Visualising the Training set results
+
+ggplot() + geom_point(aes(x = trainingset$gdp_per_capita,
+                          y = trainingset$happiness_score), colour = 'red') +
+  geom_line(aes(x = trainingset$gdp_per_capita,
+                y = predict(lm.r, newdata = trainingset)), colour = 'blue') +
+  
+  ggtitle('Happiness vs GDP (Training set)') +
+  xlab('GDP per capita') +
+  ylab('Happiness Score')
+
+# Visualising the Test set results
+
+ggplot() +
+  geom_point(aes(x = testset$gdp_per_capita, y = testset$happiness_score),
+             colour = 'red') +
+  geom_line(aes(x = trainingset$gdp_per_capita,
+                y = predict(lm.r, newdata = trainingset)),
+            colour = 'blue') +
+  ggtitle('Happiness vs GDP (Test set)') +
+  xlab('GDP per capita') +
+  ylab('Happiness')
+
+
+```
+
+# Multiple Linear Regression
+
+## Evaluation of variables
+
+```{r}
+#  test the relationship between  independent variables
+
+numeric_whr<- select(whr,c(3,4,5,6,7,8))
+cor(numeric_whr)
+
+
+#test whether your dependent variable follows a normal distribution.
+
+
+hist(whr$happiness_score)
+
+
+#Check for Linearity
+
+plot(whr$happiness_score ~ whr$family, data=whr)
+plot(whr$happiness_score ~ whr$health, data=whr)
+plot(whr$happiness_score ~ whr$generosity, data=whr)
+
+```
+
+I chose family health and generosity as they do not have too strong relationship with independent variable happiness_score 
+
+## Summary form Evaluation of variables
+
+```{r}
+# Go ahead with multiple linear regression
+
+multi_lm<-lm(whr$happiness_score ~ family + generosity + health, data = whr)
+
+summary(multi_lm)
+```
+
+Y-intercept that is the value of dependent variable when independent variables is 0 is approximately 2.5
+
+The p value is far less than 0 i.e 2.2e-16 which indicates a good linear correlation between the variables
+
+The F-statistic too far from 1 that is 163.9 which means there is a linear relationship between variables
+
+The model fits actual data by approximately 63.99%(We use Adjusted R-squared)
+
+
+# References
+
+https://www.geeksforgeeks.org/simple-linear-regression-using-r/
+https://www.statology.org/exploratory-data-analysis-in-r/
+https://dzchilds.github.io/eda-for-bio/exploring-categorical-variables.html
+https://datatofish.com/multiple-linear-regression-in-r/
+https://www.scribbr.com/statistics/linear-regression-in-r/
+
+
+
